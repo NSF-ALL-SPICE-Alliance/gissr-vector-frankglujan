@@ -63,7 +63,11 @@ Load the necessary packages (install them first if you haven't already):
 
 ```{r}
 library(tidyverse)
+
+install.packages("leaflet")
 library(leaflet)
+
+install.packages("osmdata")
 library(osmdata)
 library(leaflet)
 ```
@@ -79,10 +83,15 @@ available_features()
 
 Each feature has subcategories, called "tags". The `available_tags()` function lists out the tags associated with each feature. 
 
-**Challenge 1: Find a different feature from the `available_features()` list and use the `available_tags()` function to list all the associated tags.
+**Challenge 1: Find a different feature from the `available_features()` list and use the `available_tags()` function to list all the associated tags.**
 
 ```{r}
 available_tags("healthcare")
+```
+```{r Challenge 1}
+
+available_tags("water")
+
 ```
 
 ## Creating a query to download data
@@ -95,12 +104,24 @@ The first step in creating an `osmdata` query is defining the geographical area 
 bb <- getbb("Maui")
 bb
 ```
+
+```{r Challange 2}
+
+
+gu_bb <- getbb("Guam")
+gu_bb
+
+```
+
 The `osmdata` package retrieves data from the overpass API, which is a read-only API that serves up custom selected parts of the OSM map data. To retrieve the required features of a place (defined by the bounding box), we have to then create an overpass query. This can be easily done using the `opq()` function of the osmdata package. Here we use the previously defined bounding box to create the overpass query.
 
 Run the code chunk below to update your bounding box.
 
 ```{r}
 bb %>%
+  opq()
+
+gu_bb %>%
   opq()
 ```
 
@@ -118,6 +139,16 @@ schools <- bb %>%
   add_osm_feature(key = "amenity", value = "school") %>%
   osmdata_sf()
 
+schools
+```
+```{r Guam Schools}
+
+gu_schools <- gu_bb %>%
+  opq() %>%
+  add_osm_feature(key = "amenity", value = "school") %>%
+  osmdata_sf()
+
+gu_schools
 
 ```
 
@@ -134,18 +165,29 @@ Run the code below to see the `osmdata` object retrieved by querying the schools
 
 ```{r}
 schools
+gu_schools
 ```
 If you want to look at any part of this object in more detail, use the `$` symbol to specify. For example, if you want to see the metadata, use the code below:
 
 ```{r}
 # metadata
 schools$meta
+
+# guam metadata
+gu_schools$meta
 ```
 Note how the Spatial data returned by the query are Simple Feature objects as we requested using the `osmdata_sf()` function, and how the polygons also contain more details about the hospitals such as their names, websites, wikipedia pages etc. where available.
 
 ```{r}
 # osm_polygons
 schools$osm_polygons
+```
+
+```{r Guam OSM Polygons}
+
+#osm_polygons
+gu_schools$osm_polygons
+
 ```
 
 ## Basic Mapping with OSM
@@ -169,6 +211,16 @@ ggplot() +
   geom_sf_text(data = schools$osm_polygons, aes(label = name), size = 2, hjust = 0) +
   coord_sf(xlim = c(-156.69726, -155.97909), ylim = c(20.57443, 21.03156), expand = FALSE)
 ```
+
+```{r Challange 3}
+
+ggplot() +
+  geom_sf(data = gu_schools$osm_polygons) +
+  geom_sf_text(data = gu_schools$osm_polygons, aes(label = name), size = 2, hjust = 0) +
+  coord_sf(xlim = c(144.61832, 144.95696), ylim = c(13.24599, 13.65438), expand = FALSE)
+
+```
+
 The `osmdata` package can also be used to download other spatial features such as streets and coastlines, and overlay them on top of each other using `ggplot2` to create a map with more context. For this we create multiple queries for each feature like the code chunk below.
 
 After reading through the whole tutorial, come back and do:
@@ -196,6 +248,30 @@ coastline <- bb %>%
 
 ```
 
+```{r Challenge 4}
+
+# streets on Guam
+gu_streets <- gu_bb %>%
+  opq() %>%
+  add_osm_feature("highway", c("motorway", "primary", "secondary", "tertiary")) %>%
+  osmdata_sf()
+
+# data for small streets on Guam
+gu_small_streets <- gu_bb %>%
+  opq() %>%
+  add_osm_feature(key = "highway", value = c("residential", "living_street","unclassified", "service","footway")) %>%
+  osmdata_sf()
+
+# coastline of Guam
+
+gu_coastline <- gu_bb %>%
+  opq() %>%
+  add_osm_feature(key = "natural", value = "coastline") %>%
+  osmdata_sf()
+
+
+```
+
 Then we use the `ggplot2` package to visualize each of these features along with the hospitals on Maui. Note how we have used different colors, line sizes (thicknesses) and opacities (opaque is the opposite of transparent) to differentiate among the features.
 
 After reading through the whole tutorial, come back and do:
@@ -218,6 +294,26 @@ ggplot() +
     y = "Latitude"
   )
 ```
+
+```{r Challenge 5}
+
+# visualising all retrieved features over each other to form a map of Maui
+ggplot() +
+  geom_sf(data = gu_streets$osm_lines, inherit.aes = FALSE, color = "#ffbe7f", size = .4, alpha = .8) +
+  geom_sf(data = gu_small_streets$osm_lines, inherit.aes = FALSE, color = "#a6a6a6", size = .2, alpha = .8) +
+  geom_sf(data = gu_coastline$osm_lines, inherit.aes = FALSE, color = "black", size = .8, alpha = .5) +
+  geom_sf(data = gu_schools$osm_polygons, inherit.aes = FALSE, colour = "red", fill = "red", alpha = .5, size = 1) +
+  coord_sf(xlim = c(144.61832, 144.95696), ylim = c(13.24599, 13.65438), expand = TRUE) +
+  geom_sf_text(data = gu_schools$osm_polygons, aes(label = name), size = 2, hjust = 0) +
+  theme_bw() +
+  labs(
+    title = "Schools on Guam",
+    x = "Longitude",
+    y = "Latitude"
+  )
+
+```
+
 This is more helpful. At least now we can see that most schools are either in urban areas (where roads are more dense) or along the coastline. (After you come back and complete Challenge 5, what patterns do you notice in your target area?) 
 
 However, the schools that are clustered together are hard to see and their labels are all overlapping. This is a great reason to use an interactive map that allows us to zoom in and out!
@@ -236,6 +332,18 @@ leaflet() %>%
     label = schools$osm_polygons$name
   ) 
 ```
+
+```{r Challenge 6}
+
+leaflet() %>%
+  addTiles() %>%
+  addPolygons(
+    data = gu_schools$osm_polygons,
+    label = gu_schools$osm_polygons$name
+  )
+
+```
+
 
 # Final Challenge Preparation
 
