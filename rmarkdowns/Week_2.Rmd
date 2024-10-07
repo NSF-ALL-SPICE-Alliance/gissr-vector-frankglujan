@@ -58,6 +58,10 @@ library(rnaturalearth)
 library(rnaturalearthdata)
 library(rnaturalearthhires)
 ```
+```{r}
+install.packages("raster")
+library(raster)
+```
 
 Let's also go ahead and recreate the `world` dataframe that we used last week. 
 
@@ -84,6 +88,13 @@ ggplot(data = world) +
     theme_void()
 
 ```
+```{r Challenge 1}
+ggplot(data = world) +
+    geom_sf() +
+    coord_sf(xlim = c(140, 146), ylim = c(12, 20), expand = FALSE) +
+    ggtitle("Mariana Islands") +
+    theme_void()
+```
 
 This gives us a very simple map which doesn't provide much information. We will need to add more data layers to make the map more meaningful.
 
@@ -93,6 +104,12 @@ Let's create a layer that includes state/province level data.
 
 ```{r}
 states <- (ne_states(country = "United States of America"))
+states
+```
+
+```{r Challenge 2}
+islands <- (ne_states(country = "Guam"))
+islands
 ```
 
 Now we can add this layer to our existing map with a second `geom_sf`. 
@@ -108,6 +125,14 @@ ggplot() +
     theme_void()
 
 ```
+```{r Challenge 3}
+ggplot() +
+    geom_sf(data = world) +
+    geom_sf(data = islands) +
+   coord_sf(xlim = c(140, 146), ylim = c(12, 20), expand = FALSE) +
+    ggtitle("Mariana Islands") +
+    theme_void()
+```
 
 To see what other cultural/political features are available, use the function `df_layers_cultural`. 
 
@@ -122,6 +147,7 @@ pacific_groups <- ne_download(
   scale = 50,
   type = "admin_0_pacific_groupings"
 )
+pacific_groups
 ```
 
 Here is an example map focused on the Solomon Islands. 
@@ -141,18 +167,20 @@ Now let's add some physical features, like major lakes and rivers.
 
 ```{r}
 # lakes
-lakes50 <- ne_download(
-  scale = 50, 
+lakes110 <- ne_download(
+  scale = 110, 
   type = "lakes", 
   category = "physical")
 
 # rivers
-rivers50 <- ne_download(
-  scale = 50,
+rivers110 <- ne_download(
+  scale = 110,
   type = "rivers_lake_centerlines",
   category = "physical",
   returnclass = "sf"
 )
+
+
 
 ```
 
@@ -172,6 +200,18 @@ ggplot() +
 
 ```
 
+
+```{r Challenge 4}
+ggplot() +
+    geom_sf(data = world) +
+    geom_sf(data = islands) +
+    geom_sf(data = lakes110) +
+    geom_sf(data = rivers110) +
+    coord_sf(xlim = c(140, 146), ylim = c(12, 20), expand = FALSE) +
+    ggtitle("Mariana Islands") +
+    theme_void()
+```
+
 Now let's choose colors for all of our layers, and add some labels from the `states` layer with a `geom_text` layer. 
 
 **Challenge 5: Update the `coord_sf` with your bounding box and your `ggtitle` with your own title. Change at least one of the colors in the `ggplot` code**. You can use color names like I have here, or you can specify a color using the hex code.
@@ -189,6 +229,22 @@ ggplot() +
 
 ```
 
+```{r Challenge 5}
+
+ggplot() +
+    geom_sf(data = world, fill = "lightgray") +
+    geom_sf(data = islands, fill = "antiquewhite1", size = 0.25) +
+    geom_sf(data = lakes110, fill = "darkblue", color = "black") +
+    geom_sf(data = rivers110, color = "lightblue", size = 0.15) +
+    geom_sf_text(data = islands, aes(label = name), size = 5, fontface = "bold", nudge_y = islands$nudge_y) +
+    coord_sf(xlim = c(140, 146), ylim = c(12, 20), expand = FALSE) +
+    ggtitle("Mariana Islands")+
+    theme_void()
+
+
+```
+
+
 For our final addition, let's highlight the specific area we will be focusing on. To do this, we will create a new layer that only includes the state (or province) where we will focus on for our project. 
 
 **Challenge 6: Update the name of the state/province that you are focused on for your project.** Remember to change the name of the data object (to the left of the `<-`) to your target area. 
@@ -196,6 +252,13 @@ For our final addition, let's highlight the specific area we will be focusing on
 ```{r}
 washington <- states %>%
   filter(name == "Washington")
+```
+
+
+```{r Challenge 6}
+
+guam <- islands %>% filter(name == "Guam")
+
 ```
 
 Now let's add that as a layer (the last `geom_sf` in our code) on our map, use the same fill color as the other states, and color the border red. We want this layer to be on top of the other layers on our map, so it should come after (below) the other `geom_sf` lines of our code. The order of our layers is very important!
@@ -213,6 +276,23 @@ ggplot() +
     coord_sf(xlim = c(-130, -110), ylim = c(40, 50), expand = FALSE) +
     ggtitle("Washington State", subtitle = "in the Pacific Northwest Region of the United States")+
     theme_void()
+
+```
+
+```{r Challenge 7}
+
+ggplot() +
+    geom_sf(data = world, fill = "lightgray") +
+    geom_sf(data = islands, fill = "antiquewhite1", size = 0.25) +
+    geom_sf(data = lakes110, fill = "darkblue", color = "black") +
+    geom_sf(data = rivers110, color = "lightblue", size = 0.15) +
+    geom_sf(data = guam, fill = "antiquewhite2", color = "red")+
+    geom_text(data = islands, aes(x = longitude, y = latitude, label = name), size = 5, fontface = "bold", nudge_y = islands$nudge_y) +
+    coord_sf(xlim = c(140, 146), ylim = c(12, 20), expand = FALSE) +
+    ggtitle("Guam", subtitle = "in the Mariana Islands in the Western Pacific")+
+    theme_void()
+
+
 
 ```
 

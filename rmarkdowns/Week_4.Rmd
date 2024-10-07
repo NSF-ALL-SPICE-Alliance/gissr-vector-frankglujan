@@ -63,6 +63,11 @@ iNaturalist is a wonderful tool that helps bridge the gap between citizen scient
 
 First, load the necessary libraries:
 ```{r}
+
+install.packages("rinat")
+install.packages("tmap")
+install.packages("plotly")
+
 library(rinat)
 library(sf)
 library(tidyverse)
@@ -257,10 +262,114 @@ For your challenges this week, create the necessary code chunks below. You can c
 
 **Challenge 1: Find the `place_id` that corresponds to your target area and choose a genus or species you want to map and find the `taxon_id`.**
 
+```{r Challenge 1}
+# Guam  coordinate boundaries 
+
+inat_obs_df_gu <- get_inat_obs(taxon_id = 504034,
+                               place_id = 7316, 
+                               quality = "research",
+                               geo = TRUE,
+                               maxresults = 100)
+
+save(inat_obs_df_gu, file = "guam_torchwood_inat.Rdata")
+
+inat_obs_sf_gu <- inat_obs_df_gu %>%
+  select(longitude, latitude, datetime, common_name, scientific_name, image_url, user_login) %>% 
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
+
+```
+
 **Challenge 2: Create a static map using the `ggplot` function of your target area and target genus/species.**
+
+```{r Challenge 2}
+
+ggplot() + geom_point(data = inat_obs_df_gu, aes(x= longitude, y = latitude, color = common_name, text = common_name))
+
+
+```
 
 **Challenge 3: Create an interactive map using the `leaflet` function of your target area and target genus/species.** 
 
+```{r Challenge 3}
+
+gu_bb <- getbb("Guam")
+gu_bb
+
+# larger streets of Guam
+guam_streets <- gu_bb %>% 
+  opq() %>%
+  add_osm_feature("highway", c("motorway", "primary", "secondary", "tertiary")) %>%
+  osmdata_sf
+
+# small streets of Guam
+guam_small_streets <- gu_bb %>%
+  opq() %>%
+  add_osm_feature(key = "highway", value = c("residential", "living_street", "unclassified", "service", "footway")) %>%
+  osmdata_sf()
+
+# coastline of Guam
+guam_coast <- gu_bb %>%
+  opq() %>%
+  add_osm_feature(key = "natural", value = "coastline") %>%
+  osmdata_sf()
+
+
+# retrieving data of national park on Guam
+guam_np <- gu_bb %>%
+  opq() %>%
+  add_osm_feature(key = "boundary", value = "national_park") %>%
+  osmdata_sf()
+
+# retrieving data of protected areas on Guam
+guam_protected <- gu_bb %>%
+  opq() %>%
+  add_osm_feature(key = "boundary", value = "protected_area") %>%
+  osmdata_sf()
+
+# visualising all retrieved features over each other to form a map of Guam
+p <- ggplot() +
+  geom_sf(data = guam_streets$osm_lines, inherit.aes = FALSE, color = "#ffbe7f", size = .4, alpha = .8) +
+  geom_sf(data = guam_small_streets$osm_lines, inherit.aes = FALSE, color = "#a6a6a6", size = .2, alpha = .8) +
+  geom_sf(data = guam_coast$osm_lines, inherit.aes = FALSE, color = "black", size = .8, alpha = .5) +
+  geom_sf(data = guam_np$osm_polygons, inherit.aes = FALSE, color = "brown", size = .2, alpha = .8) +
+  geom_sf(data = guam_protected$osm_polygons, inherit.aes = FALSE, color = "green", size = .2, alpha = .8) +
+  geom_point(data = inat_obs_df_gu, aes(x = longitude, y = latitude, color = common_name, text = common_name)) + # here is our iNaturalist data
+  geom_sf_text(size = 1, data = guam_protected$osm_polygons, aes(label = name)) + #here we are adding some labels for our protected areas for context 
+  coord_sf(xlim = c(144.61832, 144.95696), ylim = c(13.24599, 13.65438), expand = TRUE) + # setting the limits of our map based on the lat/long we got from our OSM bounding box
+  ggtitle("Cycads on Guam", subtitle = "Based on iNaturalist Data as of October 2024") +
+  theme_bw() +
+  labs(
+    color="Common Name", #this changes the title of our legend
+    x = "Longitude",
+    y = "Latitude"
+  ) 
+
+ggplotly(p, tooltip = c("text"))
+
+inat_obs_popup_sf_guam <- inat_obs_sf_gu %>% 
+  mutate(popup_html = paste0("<p><b>", common_name, "</b><br/>",
+                             "<i>", scientific_name, "</i></p>",
+                             "<p>Observed: ", datetime, "<br/>",
+                             "User: ", user_login, "</p>",
+                             "<p><img src='", image_url, "' style='width:100%;'/></p>")
+  )
+
+htmltools::p("iNaturalist Observations of Cycads of Guam",
+             htmltools::br(),
+             inat_obs_popup_sf_guam$datetime %>% 
+               as.Date() %>% 
+               range(na.rm = TRUE) %>% 
+               paste(collapse = " to "),
+             style = "font-weight:bold; font-size:110%;")
+
+leaflet(inat_obs_sf_gu) %>% 
+  setView(lng = 144.6, lat = 13,2 , zoom = 12)%>%
+  addTiles() %>% 
+  addCircleMarkers(data = inat_obs_popup_sf_guam,
+                   popup = ~popup_html, 
+                   radius = 5)
+
+```
 
 # Final Challenge Preparation
 
